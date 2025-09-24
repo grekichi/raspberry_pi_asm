@@ -1,5 +1,3 @@
-# pico_blinker_asm
+# raspberry_pi_asm
 
-This contents based on below git repository by dwelch67
-
-https://github.com/dwelch67/raspberrypi-pico/tree/main/blinker00
+This is bare-metal try of raspberry pi boards.
