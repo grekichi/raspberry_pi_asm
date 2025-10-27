@@ -22,7 +22,7 @@ XIP_SSI_SPI_CTRLR0  = XIP_SSI_BASE + 0xF4
     str r1, [r0]
 
     ldr r0, =XIP_SSI_SPI_CTRLR0 ;@ SPI control
-    ldr r1, =0x03000218         ;@ reset, 8-bit instruction, address lenght -> 6 x 4 = 12bits
+    ldr r1, =0x03000218         ;@ reset, 8-bit instruction, address length -> 6 x 4 = 12bits
     str r1, [r0]
 
     ldr r0, =XIP_SSI_CTRLR1     ;@ Master control register
