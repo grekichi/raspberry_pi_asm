@@ -15,7 +15,7 @@ void DELAY(unsigned int);
 #define FS4_370 (32431)
 #define G4_392  (30611)
 #define GS4_415 (28915)
-#define A4_440  (27271)
+#define A4_440  (27272)
 #define B4_494  (24290)
 #define C5_523  (22943)
 #define CS5_554 (21660)
