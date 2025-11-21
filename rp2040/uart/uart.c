@@ -22,10 +22,7 @@ static void clock_init(void)
 }
 
 static void uart_init(void)
-{
-    // unsigned int ra;
-    // unsigned int rb;
-    
+{    
     PUT32(RESETS_RESET_CLR, (1 << 5));  // IO_BANK0のリセットを解除
     while (1)
     {
@@ -51,23 +48,12 @@ static void uart_init(void)
     // 割った結果の小数部分は、64倍した値を小数ボーレート分周値とする
     // 12000000 / (16 * 115200) = 6.5104 = 6 + 0.5104
     // m = 0.5104 * 64 + 0.5 = 33.1656
-    // ボーレート9600の場合： 78.125, 0.125*64+0.5 = 8.5 
     PUT32(UART0_BASE_UARTIBRD_RW, 6);  // ボーレート分周値 整数部
     PUT32(UART0_BASE_UARTFBRD_RW, 33);  // ボーレート分周値 小数部
     
     // 0 11 1 0 0 0 0 = (0111 0000) が設定値
     PUT32(UART0_BASE_UARTLCR_H_RW, 0x70);  // １フレームのデータビット数 8bits, FIFO有効化, パリティビットなし
     PUT32(UART0_BASE_UARTCR_RW, (1 << 8) | (1 << 0));  // UART送信部有効 受信部使用時は(1<<9)を追加要
-    
-    // ra = GET32(PADS_BANK0_GPIO0_RW);  // UART_TX
-    // ra ^= 0x40;  // 0100 0000 : if input disabled then enable
-    // ra &= 0xC0;  // 1100 0000 : if output disabled then enable
-    // PUT32(PADS_BANK0_GPIO0_XOR, ra);
-
-    // rb = GET32(PADS_BANK0_GPIO1_RW);  // UART_RX
-    // rb ^= 0x40;  // 0100 0000 : if input disabled then enable
-    // rb &= 0xC0;  // 1100 0000 : if output disabled then enable
-    // PUT32(PADS_BANK0_GPIO1_XOR, rb);
 
     PUT32(PADS_BANK0_GPIO0_CLR, 1 << 2);  // Pull down disable 
     PUT32(PADS_BANK0_GPIO0_SET, 1 << 3);  // Pull up enable
@@ -84,15 +70,6 @@ static void uart_send(char x)
     }
     PUT32(UART0_BASE_UARTDR_RW, x);
 }
-
-// static char uart_recv(void)
-// {
-//     while (1)
-//     {
-//         if ((GET32(UART0_BASE_UARTFR_RW) & (1 << 4)) == 0) break;
-//     }
-//     return (char)(GET32(UART0_BASE_UARTDR_RW));
-// }
 
 static void uart_send_str(char *y)
 {
