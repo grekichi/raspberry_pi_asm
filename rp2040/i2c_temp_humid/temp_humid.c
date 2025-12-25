@@ -18,7 +18,6 @@ static void clock_init(void)
     PUT32(XOSC_CTRL_RW, 0xAA0 | (0xFAB << 12));  // 水晶発振器を1-15MHzレンジに設定、水晶発振器enable
     PUT32(XOSC_STARTUP_RW, 0xC4);  // 256 * 196 = 50176 cycles に設定
     while (!(GET32(XOSC_STATUS_RW) & 0x80000000));  // 発振器の動作確認
-    // PUT32(CLK_REF_CTRL_RW, 1 << 0);  // SRC -> CLKSRC_CLK_REF_AUX
     
     // PLL_SYSのリセット状態を解除する（=使える状態にする）
     PUT32(RESETS_RESET_CLR, 1 << 12);  // ビット12がPLL_SYSに相当
@@ -183,48 +182,6 @@ static void i2c_init(void)
     PUT32(I2C0_IC_ENABLE_RW, 0);  // I2C0初期化
     while (GET32(I2C0_IC_ENABLE_RW) & 1);
 
-    // /* ==========================================================
-    //  * 1. I2C BUS RECOVERY
-    //  *    GPIO4 = SDA, GPIO5 = SCL
-    //  * ========================================================== */
-
-    // /* --- GPIO (SIO) 機能に切替 --- */
-    // PUT32(IO_BANK0_GPIO4_CTRL_RW, 5);   // FUNCSEL = SIO (GPIO)
-    // PUT32(IO_BANK0_GPIO5_CTRL_RW, 5);
-
-    // /* --- Pad 設定 --- */
-    // // 入力有効（SDA 状態確認用）
-    // PUT32(PADS_BANK0_GPIO4_SET, 1 << 6);
-    // PUT32(PADS_BANK0_GPIO5_SET, 1 << 6);
-
-    // // 内蔵 Pull-up は使わない（外付け前提）
-    // PUT32(PADS_BANK0_GPIO4_CLR, 1 << 3);
-    // PUT32(PADS_BANK0_GPIO5_CLR, 1 << 3);
-
-    // /* --- SDA: Hi-Z, SCL: 出力 --- */
-    // PUT32(SIO_GPIO_OE_CLR, 1 << 4);     // SDA = input (Hi-Z)
-    // PUT32(SIO_GPIO_OE_SET, 1 << 5);     // SCL = output
-
-    // /* SCL idle = High */
-    // PUT32(SIO_GPIO_OUT_SET, 1 << 5);
-    // DELAY(1000);  // 1us
-
-    // /* --- 9 クロック出力 --- */
-    // for (int i = 0; i < 9; i++) {
-    //     PUT32(SIO_GPIO_OUT_CLR, 1 << 5);  // SCL Low
-    //     DELAY(1000);
-    //     PUT32(SIO_GPIO_OUT_SET, 1 << 5);  // SCL High
-    //     DELAY(1000);
-    // }
-
-    // /* --- STOP 条件生成 (SDA↑ while SCL↑) --- */
-    // PUT32(SIO_GPIO_OUT_SET, 1 << 5);     // SCL High
-    // DELAY(1000);
-    // // SDA は OE=0 のまま → 外付け PU により High
-    // DELAY(1000);
-
-
-    // // ==========================================
     // FIFO trigger
     PUT32(I2C0_IC_TX_TL_RW, 0);
     PUT32(I2C0_IC_RX_TL_RW, 0);
@@ -270,8 +227,7 @@ static void i2c_init(void)
     DELAY(5000);  // 40μs待ち
 }
 
-static inline int read_i2c(const uint8_t address, uint8_t cmd_msb,
-     uint8_t cmd_lsb, uint8_t *data)
+static inline int read_i2c(const uint8_t address, uint8_t cmd_msb, uint8_t cmd_lsb, uint8_t *data)
 {
     // TX_FIFOが空くのを確認(TFE -> 0x1)
     while (!(GET32(I2C0_IC_STATUS_RW) & (1 << 2)));
