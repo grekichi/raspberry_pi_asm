@@ -426,7 +426,6 @@ int temp_humid(void)
     // clk_periの有効待ち
     while (!(GET32(CLK_PERI_CTRL_RW) & (1 << 11)));
     uart_init();
-    // °C
 
     PUT32(SYST_RVR, 125000-1);  // 125MHz設定のため、1msカウントにセット（1s設定できないため）
     PUT32(SYST_CVR, 0);  // 125MHz設定のため、1msカウントにセット（1s設定できないため）
