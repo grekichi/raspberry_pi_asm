@@ -206,13 +206,13 @@ static void i2c_init(void)
         0 << 9    // RX_FIFO_FULL_HLD_CTRL -> disabled
     );    
     // I2C0 標準モードのSCLクロックのHigh期間カウント
-    PUT32(I2C0_IC_SS_SCL_HCNT_RW, 600);
+    PUT32(I2C0_IC_SS_SCL_HCNT_RW, 500);
     // I2C0 標準モードのSCLクロックのLow期間カウント
-    PUT32(I2C0_IC_SS_SCL_LCNT_RW, 650);
+    PUT32(I2C0_IC_SS_SCL_LCNT_RW, 741);
     // I2C0 スパイク抑制ロジックによってフィルタリングされる最長スパイクの持続時間
     PUT32(I2C0_IC_FS_SPKLEN_RW, 4);
     // I2C0 SDAホールド持続時間
-    PUT32(I2C0_IC_SDA_HOLD_RW, 8); // 最低値は0x1
+    PUT32(I2C0_IC_SDA_HOLD_RW, 75); // 最低値は0x1
 
     // IO_BANK0 setting
     PUT32(IO_BANK0_GPIO4_CTRL_RW, 3);  // I2C0-SDA
