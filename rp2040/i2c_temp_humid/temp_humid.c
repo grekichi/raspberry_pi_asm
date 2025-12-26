@@ -196,7 +196,7 @@ static void i2c_init(void)
     PUT32(
         I2C0_IC_CON_RW,
         1 << 0 |  // MASTER_MODE -> enabled
-        2 << 1 |  // SPEED -> standard (*12MHz発振子ではstandardでしか動かせない)
+        1 << 1 |  // SPEED -> standard
         0 << 3 |  // IC_10BITADDR_SLAVE -> Slave 7bits addressing mode
         0 << 4 |  // IC_10BITADDR_MASTER -> Master 7bits addressing mode
         1 << 5 |  // IC_RESTART_EN -> enable
@@ -206,9 +206,9 @@ static void i2c_init(void)
         0 << 9    // RX_FIFO_FULL_HLD_CTRL -> disabled
     );    
     // I2C0 標準モードのSCLクロックのHigh期間カウント
-    PUT32(I2C0_IC_FS_SCL_HCNT_RW, 600);  // FSの場合、このレジスタ値は、(I2C0_IC_FS_SPKLEN_RW + 5)よりも大きくなければいけない 
+    PUT32(I2C0_IC_SS_SCL_HCNT_RW, 600);
     // I2C0 標準モードのSCLクロックのLow期間カウント
-    PUT32(I2C0_IC_FS_SCL_LCNT_RW, 650);  // FSの場合、このレジスタ値は、(I2C0_IC_FS_SPKLEN_RW + 7)よりも大きくなければいけない
+    PUT32(I2C0_IC_SS_SCL_LCNT_RW, 650);
     // I2C0 スパイク抑制ロジックによってフィルタリングされる最長スパイクの持続時間
     PUT32(I2C0_IC_FS_SPKLEN_RW, 4);
     // I2C0 SDAホールド持続時間
