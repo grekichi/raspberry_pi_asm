@@ -471,11 +471,11 @@ int temp_humid(void)
         int8_t temp_frac = (int8_t)(((uint32_t)(temp_raw & 0xFFFF) * 10) >> 16);  // 小数部分
 
         // 湿度
-        uint8_t humid_x100 = (uint8_t)((100 * (int32_t)SRH) >> 16);
+        uint8_t humid = (uint8_t)((100 * (int32_t)SRH) >> 16);
 
         int2str(temp_c, buf_temp1);
         int2str(temp_frac, buf_temp2);
-        int2str(humid_x100, buf_humid);
+        int2str(humid, buf_humid);
 
         uart_send_str("----- Measurement results -----");  
         uart_send_str("\r\n\n");
