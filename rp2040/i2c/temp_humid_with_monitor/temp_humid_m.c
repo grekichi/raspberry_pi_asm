@@ -138,6 +138,17 @@ static inline void int2bin8(uint8_t val, uint8_t *buf)
     buf[8] = '\0';
 }
 
+static inline void int2bin32(uint32_t val, uint8_t *buf)
+{
+    uint32_t u = (uint32_t)val;
+
+    for (int i = 0; i < 32; i++)
+    {
+        buf[i] = ((u >> (31 - i)) & 1) ? '1' : '0';
+    }
+    buf[32] = '\0';
+}
+
 static inline void int2str(int value, uint8_t *buf)
 {
     uint8_t i = 0;
@@ -442,7 +453,6 @@ int temp_humid_m(void)
     // clk_periの有効待ち
     while (!(GET32(CLK_PERI_CTRL_RW) & (1 << 11)));
     uart_init();
-    // °C
 
     PUT32(SYST_RVR, 125000-1);  // 125MHz設定のため、1msカウントにセット（1s設定できないため）
     PUT32(SYST_CVR, 0);  // 125MHz設定のため、1msカウントにセット（1s設定できないため）
