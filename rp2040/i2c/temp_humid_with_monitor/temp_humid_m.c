@@ -194,47 +194,6 @@ static void i2c_init(void)
     PUT32(I2C0_IC_ENABLE_RW, 0);  // I2C0初期化
     while (GET32(I2C0_IC_ENABLE_RW) & 1);
 
-    /* ==========================================================
-     * 1. I2C BUS RECOVERY
-     *    GPIO4 = SDA, GPIO5 = SCL
-     * ========================================================== */
-
-    /* --- GPIO (SIO) 機能に切替 --- */
-    PUT32(IO_BANK0_GPIO4_CTRL_RW, 5);   // FUNCSEL = SIO (GPIO)
-    PUT32(IO_BANK0_GPIO5_CTRL_RW, 5);
-
-    /* --- Pad 設定 --- */
-    // 入力有効（SDA 状態確認用）
-    PUT32(PADS_BANK0_GPIO4_SET, 1 << 6);
-    PUT32(PADS_BANK0_GPIO5_SET, 1 << 6);
-
-    // 内蔵 Pull-up は使わない（外付け前提）
-    PUT32(PADS_BANK0_GPIO4_CLR, 1 << 3);
-    PUT32(PADS_BANK0_GPIO5_CLR, 1 << 3);
-
-    /* --- SDA: Hi-Z, SCL: 出力 --- */
-    PUT32(SIO_GPIO_OE_CLR, 1 << 4);     // SDA = input (Hi-Z)
-    PUT32(SIO_GPIO_OE_SET, 1 << 5);     // SCL = output
-
-    /* SCL idle = High */
-    PUT32(SIO_GPIO_OUT_SET, 1 << 5);
-    DELAY(1000);  // 1us
-
-    /* --- 9 クロック出力 --- */
-    for (int i = 0; i < 9; i++) {
-        PUT32(SIO_GPIO_OUT_CLR, 1 << 5);  // SCL Low
-        DELAY(1000);
-        PUT32(SIO_GPIO_OUT_SET, 1 << 5);  // SCL High
-        DELAY(1000);
-    }
-
-    /* --- STOP 条件生成 (SDA↑ while SCL↑) --- */
-    PUT32(SIO_GPIO_OUT_SET, 1 << 5);     // SCL High
-    DELAY(1000);
-    // SDA は OE=0 のまま → 外付け PU により High
-    DELAY(1000);
-
-    // ==========================================
     // FIFO trigger
     PUT32(I2C0_IC_TX_TL_RW, 0);
     PUT32(I2C0_IC_RX_TL_RW, 0);
