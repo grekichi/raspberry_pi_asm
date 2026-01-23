@@ -2,15 +2,12 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
-// #include "uart.h"
 
 void PUT32 (uint32_t, uint32_t);
 uint32_t GET32 (uint32_t);
 void DELAY (uint32_t);
 void WFI(void);
 
-// GPIO4(I2C0-SDA) --> SHT31のSDAに接続
-// GPIO5(I2C0-SDL) --> SHT31のSDLに接続
 
 static void clock_init(void)
 {
@@ -19,7 +16,6 @@ static void clock_init(void)
     PUT32(XOSC_CTRL_RW, 0xAA0 | (0xFAB << 12));  // 水晶発振器を1-15MHzレンジに設定、水晶発振器enable
     PUT32(XOSC_STARTUP_RW, 0xC4);  // 256 * 196 = 50176 cycles に設定
     while (!(GET32(XOSC_STATUS_RW) & 0x80000000));  // 発振器の動作確認
-    // PUT32(CLK_REF_CTRL_RW, 1 << 0);  // SRC -> CLKSRC_CLK_REF_AUX
     
     // PLL_SYSのリセット状態を解除する（=使える状態にする）
     PUT32(RESETS_RESET_CLR, 1 << 12);  // ビット12がPLL_SYSに相当
@@ -76,8 +72,6 @@ static void led_init(void)
 
 static void uart_init(void)
 {
-    // uint32_t ra;
-
     PUT32(RESETS_RESET_CLR, (1 << 22));  // UART0のリセットを解除
     while (!(GET32(RESETS_RESET_DONE_RW) & (1 << 22)));
 
@@ -91,15 +85,10 @@ static void uart_init(void)
     // 0.8168 * 64 = 52.2752 -> + 0.5 = 52.7752
     PUT32(UART0_BASE_UARTIBRD_RW, 67);  // 整数ボーレート分周値
     PUT32(UART0_BASE_UARTFBRD_RW, 53);  // 小数ボーレート分周値
-    // ボーレート57600の場合： 13.0208, 0.0208*64=1.3312 
 
     // 0 11 1 0 0 0 0 = (0111 0000) が設定値
     PUT32(UART0_BASE_UARTLCR_H_RW, 0x70);  // １フレームのデータビット数 8bits, FIFO有効化, パリティビットなし
     PUT32(UART0_BASE_UARTCR_RW, (1 << 9) | (1 << 8) | (1 << 0));  // TXE:有効、RXE:有効
-
-    // ra = GET32(PADS_BANK0_GPIO0_RW);  // UART_TX
-    // ra ^= 0x40;  // 0100 0000 : if input disabled then enable
-    // ra &= 0xC0;  // 1100 0000 : if output disabled then enable
 
     // GPIO0の設定
     PUT32(PADS_BANK0_GPIO0_CLR, (1 << 7) | (1 << 6));  // OD/IE -> disable
@@ -138,20 +127,6 @@ static void uart_send_str(uint8_t *y)
     uart_send_char('\n');
 }
 
-static inline uint32_t bin2dec(const uint8_t *bin)
-{
-    uint32_t val = 0;
-
-    while (*bin) {
-        if (*bin != '0' && *bin != '1') {
-            return 0; // エラー処理（適宜変更）
-        }
-        val = (val << 1) | (*bin - '0');
-        bin++;
-    }
-    return val;
-}
-
 static inline void int2bin8(uint8_t val, uint8_t *buf)
 {
     uint8_t u = (uint8_t)val;
@@ -161,29 +136,6 @@ static inline void int2bin8(uint8_t val, uint8_t *buf)
         buf[i] = ((u >> (7 - i)) & 1) ? '1' : '0';
     }
     buf[8] = '\0';
-}
-
-
-static inline void int2bin16(uint32_t val, uint8_t *buf)
-{
-    uint32_t u = (uint32_t)val;
-
-    for (int i = 0; i < 16; i++)
-    {
-        buf[i] = ((u >> (15 - i)) & 1) ? '1' : '0';
-    }
-    buf[16] = '\0';
-}
-
-static inline void int2bin32(uint32_t val, uint8_t *buf)
-{
-    uint32_t u = (uint32_t)val;
-
-    for (int i = 0; i < 32; i++)
-    {
-        buf[i] = ((u >> (31 - i)) & 1) ? '1' : '0';
-    }
-    buf[32] = '\0';
 }
 
 static inline void int2str(int value, uint8_t *buf)
@@ -282,7 +234,6 @@ static void i2c_init(void)
     // SDA は OE=0 のまま → 外付け PU により High
     DELAY(1000);
 
-
     // ==========================================
     // FIFO trigger
     PUT32(I2C0_IC_TX_TL_RW, 0);
@@ -298,7 +249,7 @@ static void i2c_init(void)
     PUT32(
         I2C0_IC_CON_RW,
         1 << 0 |  // MASTER_MODE -> enabled
-        1 << 1 |  // SPEED -> standard (*12MHz発振子ではstandardでしか動かせない)
+        1 << 1 |  // SPEED -> standard
         0 << 3 |  // IC_10BITADDR_SLAVE -> Slave 7bits addressing mode
         0 << 4 |  // IC_10BITADDR_MASTER -> Master 7bits addressing mode
         1 << 5 |  // IC_RESTART_EN -> enable
@@ -308,9 +259,9 @@ static void i2c_init(void)
         0 << 9    // RX_FIFO_FULL_HLD_CTRL -> disabled
     );    
     // I2C0 標準モードのSCLクロックのHigh期間カウント
-    PUT32(I2C0_IC_SS_SCL_HCNT_RW, 500);  // FSの場合、このレジスタ値は、(I2C0_IC_FS_SPKLEN_RW + 5)よりも大きくなければいけない 
+    PUT32(I2C0_IC_SS_SCL_HCNT_RW, 500);
     // I2C0 標準モードのSCLクロックのLow期間カウント
-    PUT32(I2C0_IC_SS_SCL_LCNT_RW, 741);  // FSの場合、このレジスタ値は、(I2C0_IC_FS_SPKLEN_RW + 7)よりも大きくなければいけない
+    PUT32(I2C0_IC_SS_SCL_LCNT_RW, 741);
     // I2C0 スパイク抑制ロジックによってフィルタリングされる最長スパイクの持続時間
     PUT32(I2C0_IC_FS_SPKLEN_RW, 4);  // 3:32ns 4:40ns 5:48ns
     // I2C0 SDAホールド持続時間
@@ -509,92 +460,6 @@ static inline int write_i2c(const uint8_t address, uint8_t comMsb, uint8_t comLs
     return 0;  // 成功
 }
 
-// モニターデバイスへの制御書き込み関数
-static inline int write_i2c_cont(const uint8_t address, uint8_t control, uint8_t command)
-{
-    // TX_FIFOが空くのを確認(TFE -> 0x1)
-    while (!(GET32(I2C0_IC_STATUS_RW) & (1 << 2)));
-
-    // ABORT/STOPクリア
-    GET32(I2C0_IC_CLR_TX_ABRT_RW);
-    GET32(I2C0_IC_CLR_STOP_DET_RW);
-    // 割り込み・ABORT完全クリア
-    GET32(I2C0_IC_CLR_INTR_RW);
-
-    PUT32(I2C0_IC_ENABLE_RW, 0);
-    while (GET32(I2C0_IC_ENABLE_RW) & 1);
-    PUT32(I2C0_IC_TAR_RW, address & 0x7F);
-    PUT32(I2C0_IC_ENABLE_RW, 1);  // データ読み込み前に必ずこのレジスタをenableに設定すること
-
-    // コマンド読み込み
-    uint32_t timeout;
-    uint8_t input[2] = {control, command};
-    
-    uint32_t i;
-    for (i = 0; i < 2; i++)
-    {
-        uint32_t cmd = input[i];  
-        
-        // 最後のバイト → STOP
-        if (i == 1)
-        {
-            cmd |= (1 <<  9);
-        }
-
-        // // TFNF待ち
-        // timeout = 100000;
-        // while(!(GET32(I2C0_IC_STATUS_RW) & (1 << 1)))
-        // {
-        //     if (--timeout == 0)
-        //         return -1;
-        // }
-
-        PUT32(I2C0_IC_DATA_CMD_RW, cmd);
-
-        // // TX_FIFOの空き待つ
-        // timeout = 100000;
-        // while(!(GET32(I2C0_IC_STATUS_RW) & (1 << 2)))  // TFE
-        // {
-        //     if (--timeout == 0)
-        //         return -2;  // TX空き待ちタイムアウト
-        // }
-
-        // TX_TLのしきい値以下確認（CON設定上、実質０確認となる）
-        while(!(GET32(I2C0_IC_RAW_INTR_STAT_RW) & (1 << 4)));  // TX_EMPTY
-
-        // ABORT確認
-        bool abort = false;
-        uint32_t abort_reason = GET32(I2C0_IC_TX_ABRT_SOURCE_RW);
-        if (abort_reason != 0)
-        {
-            uint8_t log[33];
-            int2bin32(abort_reason, log);
-            uart_send(0x23);        // DEBUG #
-            uart_send_str(log);     // ログ出力
-            GET32(I2C0_IC_CLR_TX_ABRT_RW);  // ABORTデータクリア
-            abort = true;
-            // 発生ABORTチェック
-            if (abort_reason & (1 << 0))
-            {
-                uart_send_str("Write Control NoAck !");  // DEBUG
-            }
-            if (abort_reason & (1 << 3))
-            {
-                uart_send_str("Write Command NoAck !");  // DEBUG
-            }
-
-            // STOP_DET割り込みがアクティブになるのを確認
-            while (!(GET32(I2C0_IC_RAW_INTR_STAT_RW) & (1 << 9)));
-            GET32(I2C0_IC_CLR_STOP_DET_RW);
-
-            return -3;  // NOACK発生
-        }
-        if (abort) break;
-    }
-
-    return 0;
-}
-
 
 volatile uint32_t systick_ms = 0;
 void Systick_Handler(void)
@@ -638,30 +503,6 @@ int temp_humid_m(void)
     const uint8_t sensor_addr = 0x45; // センサーのスレーブアドレス
     const uint8_t monitor_addr = 0x3E;  // モニターのスレーブアドレス
 
-    // // SHT31初期化コード
-    // static const uint8_t sht_data[] = {
-    //     0x30, 0xA2,  // ソフトリセット
-    //     0x30, 0x66,  // ヒーター停止
-    //     0x30, 0x41   // ステータスレジスタのデータ消去
-    // };
-
-    // // AQM0802初期化コード前半
-    // static const uint8_t moni_init_data1[] = {
-    //     0x38,  // Function set -> 8bit bus, 2-line display
-    //     0x39,  // Function set -> (IS tabel = 1) 拡張機能セット
-    //     0x14,  // 内蔵発振器の周波数設定 -> bias: 1/5, F2=1: 183Hz(3.0Vの場合)
-    //     0x70,  // コントラスト設定(Low byte) -> ?
-    //     0x56,  // Power,ICONコントロール,コントラスト設定(High byte) -> booster on
-    //     0x6C   // フォロワー制御 -> 内部フォロワー回路on
-    // };
-
-    // // AQM0802r初期化コード後半
-    // static const uint8_t moni_init_data2[] = {
-    //     0x38,  // Function set ->  標準セット戻し
-    //     0x0C,  // ディスプレイ制御 -> ディスプレイon
-    //     0x01   // ディスプレイクリア
-    // };
-
     // AQM0802初期設定
     PUT32(SIO_GPIO_OUT_SET, 1 << 15);  // ディスプレイ RESET
     DELAY(5000000);  // 40ms待機
@@ -676,7 +517,7 @@ int temp_humid_m(void)
     write_i2c(monitor_addr, 0x00, 0x14);  // @内蔵発振器の周波数設定 -> bias: 1/5, F2=1: 183Hz(3.0Vの場合)
     DELAY(5000);  // 40μs待機
     uart_send_str("1-4");  // DEBUG 4
-    write_i2c(monitor_addr, 0x00, 0x73);  // コントラスト設定(Low byte) -> ?
+    write_i2c(monitor_addr, 0x00, 0x73);  // コントラスト設定(Low byte)
     DELAY(5000);  // 40μs待機
     uart_send_str("1-5");  // DEBUG 5
     write_i2c(monitor_addr, 0x00, 0x56);  // @Power,ICONコントロール,コントラスト設定(High byte) -> booster on    
@@ -711,7 +552,7 @@ int temp_humid_m(void)
         WFI();
 
         // SHT31からのデータ受信
-        uart_send_str("Sensor read start ...");           // DEBUG 
+        uart_send_str("Sensor read start ...");  // DEBUG 
         read_i2c(sensor_addr, 0x2C, 0x06, recieve_data);
         DELAY(125000);  // 1ms待ち
 
