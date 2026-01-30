@@ -241,10 +241,6 @@ static void i2c_init(void)
     PUT32(IO_BANK0_GPIO4_CTRL_RW, 3);  // I2C0-SDA
     PUT32(IO_BANK0_GPIO5_CTRL_RW, 3);  // I2C0-SCL
 
-    // Input有効化
-    PUT32(PADS_BANK0_GPIO4_SET, 1 << 6);  // IE -> enable
-    PUT32(PADS_BANK0_GPIO5_SET, 1 << 6);  // IE -> enable
-
     // I2C0を有効化
     PUT32(I2C0_IC_ENABLE_RW, 1);
 }
