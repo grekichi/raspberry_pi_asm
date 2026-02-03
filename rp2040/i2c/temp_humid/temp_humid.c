@@ -18,6 +18,7 @@ static void clock_init(void)
     PUT32(XOSC_CTRL_RW, 0xAA0 | (0xFAB << 12));  // 水晶発振器を1-15MHzレンジに設定、水晶発振器enable
     PUT32(XOSC_STARTUP_RW, 0xC4);  // 256 * 196 = 50176 cycles に設定
     while (!(GET32(XOSC_STATUS_RW) & 0x80000000));  // 発振器の動作確認
+    PUT32(CLK_REF_CTRL_RW, 0x2);  // SRC -> XOSC_CLKSRC
     
     // PLL_SYSのリセット状態を解除する（=使える状態にする）
     PUT32(RESETS_RESET_CLR, 1 << 12);  // ビット12がPLL_SYSに相当
