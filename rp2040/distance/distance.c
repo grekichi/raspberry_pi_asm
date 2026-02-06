@@ -496,10 +496,10 @@ int distance(void)
             write_i2c(monitor_addr, 0x40, buf_dist[i]);
         }       
         delay_mcrs(30);  // 30μs待機
-        // 記号 mm
+        // 記号 m
         write_i2c(monitor_addr, 0x40, 0x6D);        
         delay_mcrs(30);  // 30μs待機
-        // 文字C
+        // 記号 m
         write_i2c(monitor_addr, 0x40, 0x6D);        
         delay_mcrs(30);  // 30μs待機
 
