@@ -34,11 +34,11 @@ static void clock_init(void)
     PUT32(PLL_SYS_PWR_RW, 0);  // Power -> on, PD=0, VCOPD=0, POSTDIVPD=0
     
     PUT32(CLK_SYS_CTRL_CLR, 1 << 0);  // SRCを一旦CLK_REF(=XOSC)に退避する 
-    PUT32(CLK_SYS_CTRL_CLR, 7 << 5);  // AUXSRC 7:5bits クリア -> PLL_SYS
-    PUT32(CLK_SYS_CTRL_SET, (0 << 5) | (1 << 0));  // AUXSRC -> PLL_SYS, CLKSRC_CLK_SYS_AUX
+    PUT32(CLK_SYS_CTRL_CLR, 0x7 << 5);  // AUXSRC 7:5bits クリア -> PLL_SYS
+    PUT32(CLK_SYS_CTRL_SET, (0x0 << 5) | (0x1 << 0));  // AUXSRC -> PLL_SYS, CLKSRC_CLK_SYS_AUX
 
-    PUT32(CLK_PERI_CTRL_CLR, 7 << 5);  // AUXSRC 7:5bits クリア -> CLK_SYS
-    PUT32(CLK_PERI_CTRL_SET, (1 << 11) | (1 << 5));  // enable, CLKSRC_PLL_SYS
+    PUT32(CLK_PERI_CTRL_CLR, 0x7 << 5);  // AUXSRC 7:5bits クリア -> CLK_SYS
+    PUT32(CLK_PERI_CTRL_SET, (1 << 11) | (0x1 << 5));  // enable, CLKSRC_PLL_SYS
 }
 
 static void reset_subsys(void)
