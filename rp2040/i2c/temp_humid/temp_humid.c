@@ -14,7 +14,7 @@ void WFI(void);
 static void clock_init(void)
 {
     // 125MHzに設定する
-    PUT32(CLK_SYS_RESUS_CTRL_RW, 0);  // RESUS無効化、time out を0サイクルに設定
+    PUT32(CLK_SYS_RESUS_CTRL_RW, 0x00);  // RESUS無効化、time out を0サイクルに設定
     PUT32(XOSC_CTRL_RW, 0xAA0 | (0xFAB << 12));  // 水晶発振器を1-15MHzレンジに設定、水晶発振器enable
     PUT32(XOSC_STARTUP_RW, 0xC4);  // 256 * 196 = 50176 cycles に設定
     while (!(GET32(XOSC_STATUS_RW) & 0x80000000));  // 発振器の動作確認
