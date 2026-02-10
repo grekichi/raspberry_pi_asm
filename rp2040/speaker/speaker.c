@@ -57,7 +57,7 @@ void DELAY(unsigned int);
 
 static void clock_init(void)  // 水晶発振器のセット 
 {
-    PUT32(CLK_SYS_RESUS_CTRL_RW, 0);  // time out を0サイクルに設定
+    PUT32(CLK_SYS_RESUS_CTRL_RW, 0x00);  // time out を0サイクルに設定
     PUT32(XOSC_CTRL_RW, 0xAA0);  // 水晶発振器を1-15MHzレンジに設定
     PUT32(XOSC_STARTUP_RW, 47);  // 256 * 47 = 12032cycles(=1ms)を 起動遅延として設定
     PUT32(XOSC_CTRL_RW, 0xFAB << 12);  // 水晶発振器を使用可能(enable)にする 
@@ -65,9 +65,9 @@ static void clock_init(void)  // 水晶発振器のセット
     {
         if ((GET32(XOSC_STATUS_RW) & 0x80000000) != 0) break;  // 発振器の動作確認
     }
-    PUT32(CLK_REF_CTRL_RW, 2);  // XOSC Clock source
-    PUT32(CLK_SYS_CTRL_RW, 0);  // CLK_REF
-    PUT32(CLK_PERI_CTRL_RW, (1 << 11) | (4 << 5));  // enable, XOSC_CLKSRC
+    PUT32(CLK_REF_CTRL_RW, 0x2);  // XOSC Clock source
+    PUT32(CLK_SYS_CTRL_RW, 0x0);  // CLK_REF
+    PUT32(CLK_PERI_CTRL_RW, (1 << 11) | (0x4 << 5));  // enable, XOSC_CLKSRC
 }
 
 static void pwm_init(void)
