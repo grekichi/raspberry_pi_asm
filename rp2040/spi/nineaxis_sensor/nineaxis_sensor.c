@@ -748,13 +748,8 @@ static void spi_init(void)
 
     // GPIO13(NCS)はSIO(=5)として初期化(MPU9250用)
     PUT32(IO_BANK0_GPIO13_CTRL_RW, 5);
-    // GPIO10でCSBをI2Cの張り付きリセットスイッチとして使うためSIO(=5)設定
-    PUT32(IO_BANK0_GPIO10_CTRL_RW, 5);
-
     PUT32(SIO_GPIO_OUT_SET, BIT_CS_MPU); // GPIO13の値をHighにセット
     PUT32(SIO_GPIO_OE_SET, BIT_CS_MPU);  // GPIO13の出力を有効化
-    PUT32(SIO_GPIO_OUT_SET, (1 << 10)); // GPIO10の値をHighにセット
-    PUT32(SIO_GPIO_OE_SET, (1 << 10));  // GPIO10の出力を有効化
 
     // SPI1一旦無効化
     PUT32(SPI1_SSPCR1_RW, 0x00); // SSE -> disable
@@ -1351,7 +1346,7 @@ int nineaxis(void)
 
 //-------------------------------------------------------------------------
 //
-// Copyright (c) 2025 grekichi
+// Copyright (c) 2026 grekichi
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 //
