@@ -1303,8 +1303,6 @@ int nineaxis(void)
         // accel_xの表示
         write_i2c(monitor_addr, 0x40, 0x58); // X
         delay_us(30);                        // 30μs待機
-        // write_i2c(monitor_addr, 0x40, 0x3A);  // :
-        // delay_mcrs(30);  // 30μs待機
         for (int32_t i = 0; buf_axlx[i] != '\0'; i++)
         {
             write_i2c(monitor_addr, 0x40, buf_axlx[i]);
@@ -1316,8 +1314,6 @@ int nineaxis(void)
         // accel_yの表示
         write_i2c(monitor_addr, 0x40, 0x59); // Y
         delay_us(30);                        // 30μs待機
-        // write_i2c(monitor_addr, 0x40, 0x3A);  // :
-        // delay_mcrs(30);  // 30μs待機
         for (int32_t i = 0; buf_axly[i] != '\0'; i++)
         {
             write_i2c(monitor_addr, 0x40, buf_axly[i]);
@@ -1330,8 +1326,6 @@ int nineaxis(void)
         delay_us(30);                        // 30μs待機
         write_i2c(monitor_addr, 0x40, 0x5A); // Z
         delay_us(30);                        // 30μs待機
-        // write_i2c(monitor_addr, 0x40, 0x3A);  // :
-        // delay_mcrs(30);  // 30μs待機
         for (int32_t i = 0; buf_axlz[i] != '\0'; i++)
         {
             write_i2c(monitor_addr, 0x40, buf_axlz[i]);
