@@ -949,25 +949,25 @@ static uint32_t ak8963_init(void)
         uart_line_break();
         return 1;
     }
-    // ----- デバッグ用出力 -----
-    // 工場出荷値は通常128近辺(120〜140程度)
-    uint8_t buf_asax[5];
-    uint8_t buf_asay[5];
-    uint8_t buf_asaz[5];
-    short2str((int16_t)my_magsensor.asa[0], buf_asax);
-    short2str((int16_t)my_magsensor.asa[1], buf_asay);
-    short2str((int16_t)my_magsensor.asa[2], buf_asaz);
+    // // ----- デバッグ用出力 -----
+    // // 工場出荷値は通常128近辺(120〜140程度)
+    // uint8_t buf_asax[5];
+    // uint8_t buf_asay[5];
+    // uint8_t buf_asaz[5];
+    // short2str((int16_t)my_magsensor.asa[0], buf_asax);
+    // short2str((int16_t)my_magsensor.asa[1], buf_asay);
+    // short2str((int16_t)my_magsensor.asa[2], buf_asaz);
 
-    uart_send_str("ASA values: ");
-    uart_send_str("X = ");
-    uart_send_str(buf_asax);
-    uart_send_str(", ");
-    uart_send_str("Y = ");
-    uart_send_str(buf_asay);
-    uart_send_str(", ");
-    uart_send_str("Z = ");
-    uart_send_str(buf_asaz);
-    uart_line_break();
+    // uart_send_str("ASA values: ");
+    // uart_send_str("X = ");
+    // uart_send_str(buf_asax);
+    // uart_send_str(", ");
+    // uart_send_str("Y = ");
+    // uart_send_str(buf_asay);
+    // uart_send_str(", ");
+    // uart_send_str("Z = ");
+    // uart_send_str(buf_asaz);
+    // uart_line_break();
     
     // 磁力計(AK8963)を「16bit連続測定モード2」に設定(SVL4を使用)
     write_spi_reg(BIT_CS_MPU, MPU9250_I2C_SLV4_CTRL, 0x00);
