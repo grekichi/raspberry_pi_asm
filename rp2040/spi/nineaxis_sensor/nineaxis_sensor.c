@@ -748,8 +748,13 @@ static void spi_init(void)
 
     // GPIO13(NCS)はSIO(=5)として初期化(MPU9250用)
     PUT32(IO_BANK0_GPIO13_CTRL_RW, 5);
+    // GPIO10でCSBをI2Cの張り付きリセットスイッチとして使うためSIO(=5)設定
+    PUT32(IO_BANK0_GPIO10_CTRL_RW, 5);
+
     PUT32(SIO_GPIO_OUT_SET, BIT_CS_MPU); // GPIO13の値をHighにセット
     PUT32(SIO_GPIO_OE_SET, BIT_CS_MPU);  // GPIO13の出力を有効化
+    PUT32(SIO_GPIO_OUT_SET, (1 << 10)); // GPIO10の値をHighにセット
+    PUT32(SIO_GPIO_OE_SET, (1 << 10));  // GPIO10の出力を有効化
 
     // SPI1一旦無効化
     PUT32(SPI1_SSPCR1_RW, 0x00); // SSE -> disable
@@ -800,7 +805,7 @@ static uint32_t mpu9250_init(void)
     delay_ms(10);
     
     // I2Cクロックを400kHzに設定 (I2C_MST_CTRL) & Stop Condition強制
-    write_spi_reg(BIT_CS_MPU, MPU9250_I2C_MST_CTRL, 0x0D); // I2C_MST_CLK[3:0] -> 9 
+    write_spi_reg(BIT_CS_MPU, MPU9250_I2C_MST_CTRL, 0x1D); // I2C_MST_P_NSR | I2C_MST_CLK[3:0] -> 9 
     // サンプルレートを100Hzに落として、I2Cマスターを落ち着かせる
     write_spi_reg(BIT_CS_MPU, MPU9250_SMPLRT_DIV, 0x00);  // この処理は重要
     // I2Cマスターのディレイをリセットする
@@ -964,19 +969,57 @@ static uint32_t ak8963_init(void)
     uart_send_str(buf_asaz);
     uart_line_break();
     
-    // 磁力計(AK8963)を「16bit連続測定モード」に設定
-    write_spi_reg(BIT_CS_MPU, MPU9250_I2C_SLV0_CTRL, 0x00);
-    write_spi_reg(BIT_CS_MPU, MPU9250_I2C_SLV0_ADDR, (mag_addr & 0x7F));  // I2C Write指示(Bit7=0)
-    write_spi_reg(BIT_CS_MPU, MPU9250_I2C_SLV0_REG, AK8963_REG_CNTL1);  // AK8963のCNTL1レジスタ
-    write_spi_reg(BIT_CS_MPU, MPU9250_I2C_SLV0_DO, 0x16);  // 16bit出力, 連続測定モード2(100Hz)
-    write_spi_reg(BIT_CS_MPU, MPU9250_I2C_SLV0_CTRL, 0x81);  // I2C_SLV0_EN | I2C_SLV0_LENG[3:0] -> 1 byte
-    delay_ms(10); // 内部転送完了待ち
+    // 磁力計(AK8963)を「16bit連続測定モード2」に設定(SVL4を使用)
+    write_spi_reg(BIT_CS_MPU, MPU9250_I2C_SLV4_CTRL, 0x00);
+    write_spi_reg(BIT_CS_MPU, MPU9250_I2C_SLV4_ADDR, (mag_addr & 0x7F));  // I2C Write指示(Bit7=0)
+    write_spi_reg(BIT_CS_MPU, MPU9250_I2C_SLV4_REG, AK8963_REG_CNTL1);  // AK8963のCNTL1レジスタ
+    write_spi_reg(BIT_CS_MPU, MPU9250_I2C_SLV4_DO, 0x16);  // 16bit出力, 連続測定モード2(100Hz)
+    write_spi_reg(BIT_CS_MPU, MPU9250_I2C_SLV4_CTRL, 0x80);  // I2C_SLV0_EN | I2C_SLV0_LENG[3:0] -> 1 byte
+    // 内部転送完了待ち
+    if (check_i2c_slv4_done() != 0)
+    {
+        uart_send_str("Error: Mag Mode Write Timeout");
+        uart_line_break();
+        return 1;
+    }
+    delay_ms(10);
+
+    // 2. ★DRDYが1になるまで待つ★
+    uart_send_str("Waiting for first Mag DRDY... ");
+    uint16_t timeout = 500; 
+    while (timeout > 0) {
+        // ST1(0x02)をSLV4で読み出す
+        write_spi_reg(BIT_CS_MPU, MPU9250_I2C_SLV4_ADDR, (mag_addr | 0x80));
+        write_spi_reg(BIT_CS_MPU, MPU9250_I2C_SLV4_REG, AK8963_REG_ST1);
+        write_spi_reg(BIT_CS_MPU, MPU9250_I2C_SLV4_CTRL, 0x80);
+        check_i2c_slv4_done();
+        
+        uint8_t st1 = read_spi_reg(BIT_CS_MPU, MPU9250_I2C_SLV4_DI);
+        if (st1 & 0x01) {
+            uart_send_str("Success !");
+            uart_line_break();
+            break;
+        }
+        delay_ms(1);
+        timeout--;
+    }
+    if (timeout == 0) {
+        uart_send_str("Failed (Timeout)");
+        uart_line_break();
+    }
 
     // ----- AK8963自動読み出し設定 -----
     write_spi_reg(BIT_CS_MPU, MPU9250_I2C_SLV0_CTRL, 0x00);
     write_spi_reg(BIT_CS_MPU, MPU9250_I2C_SLV0_ADDR, (mag_addr | 0x80)); // I2C_SLV0_RNW | I2C Read指示
     write_spi_reg(BIT_CS_MPU, MPU9250_I2C_SLV0_REG, AK8963_REG_ST1); // 読み始めレジスタを指定
     write_spi_reg(BIT_CS_MPU, MPU9250_I2C_SLV0_CTRL, 0x88); // I2C_SLV0_EN | 8 bytes
+    
+    // 分周比（1/5）を設定する
+    // I2C_MST_DELAY_CTRL で SLV0 にディレイをかける許可を出す
+    write_spi_reg(BIT_CS_MPU, MPU9250_I2C_MST_DELAY_CTRL, 0x01); // I2C_SLV0_DLY_EN -> 1
+    // 下位4ビットがディレイ値： 1 / (1 + 4) = 1/5
+    write_spi_reg(BIT_CS_MPU, MPU9250_I2C_SLV4_CTRL, 0x04);
+    
     delay_ms(10); // 転送完了待ち
 
     return 0;
@@ -1030,7 +1073,7 @@ typedef struct
     int16_t acc[3];         // 加速度 X, Y, Z
     int16_t acc_offset[3];  // 加速度校正用
     int16_t gyro[3];        // ジャイロ X, Y, Z
-    int16_t gyro_offset[3]; //  ジャイロ校正用
+    int16_t gyro_offset[3]; // ジャイロ校正用
     int16_t mag[3];         // 磁力 X, Y, Z
     int16_t temp;           // 温度
 } sensor_data_t;
@@ -1132,33 +1175,18 @@ static inline void read_sensor_data(magnetic_t *dev, sensor_data_t *data)
     // buffer[17..18] = HYL, HYH
     // buffer[19..20] = HZL, HZH
     // buffer[21] = ST2
-    // データが準備できているか(DRDY)を確認
-    if (buffer[14] & 0x01)
+    // ST2(buffer[21])に磁気センサオーバーフロー(HOFL)がないか確認
+    if (!(buffer[21] & 0x08))
     {
-        // ST2(buffer[21])に磁気センサオーバーフロー(HOFL)がないか確認
-        if (!(buffer[21] & 0x08))
-        {
-            // 生データを一旦取得する
-            int16_t raw_x = (int16_t)((buffer[16] << 8) | buffer[15]);
-            int16_t raw_y = (int16_t)((buffer[18] << 8) | buffer[17]);
-            int16_t raw_z = (int16_t)((buffer[20] << 8) | buffer[19]);
-
-            // ASA補正をかける
-            data->mag[0] = (int16_t)(((int32_t)raw_x * (dev->asa[0] + 128)) >> 8);
-            data->mag[1] = (int16_t)(((int32_t)raw_y * (dev->asa[1] + 128)) >> 8);
-            data->mag[2] = (int16_t)(((int32_t)raw_z * (dev->asa[2] + 128)) >> 8);
-        }
+        // 生データを一旦取得する
+        int16_t raw_x = (int16_t)((buffer[16] << 8) | buffer[15]);
+        int16_t raw_y = (int16_t)((buffer[18] << 8) | buffer[17]);
+        int16_t raw_z = (int16_t)((buffer[20] << 8) | buffer[19]);
+        // ASA補正をかける
+        data->mag[0] = (int16_t)(((int32_t)raw_x * (dev->asa[0] + 128)) >> 8);
+        data->mag[1] = (int16_t)(((int32_t)raw_y * (dev->asa[1] + 128)) >> 8);
+        data->mag[2] = (int16_t)(((int32_t)raw_z * (dev->asa[2] + 128)) >> 8);
     }
-
-    // 以下、デバッグ用
-    for(int i=0; i<15; i++)
-    {
-        uint8_t t[4];
-        char2str(buffer[i], t); // 前に作った uint8 変換
-        uart_send_str(t);
-        uart_send_str(", ");
-    }
-    uart_line_break();
 }
 
 volatile uint32_t systick_ms = 0;
@@ -1250,9 +1278,9 @@ int nineaxis(void)
         uint8_t buf_magx[12];
         uint8_t buf_magy[12];
         uint8_t buf_magz[12];
-        int32_t mag_x = ((int32_t)my_sensor.mag[0] * 9830) >> 16;
-        int32_t mag_y = ((int32_t)my_sensor.mag[1] * 9830) >> 16;
-        int32_t mag_z = ((int32_t)my_sensor.mag[2] * 9830) >> 16;
+        int32_t mag_x = (int32_t)my_sensor.mag[0] * 150;
+        int32_t mag_y = (int32_t)my_sensor.mag[1] * 150;
+        int32_t mag_z = (int32_t)my_sensor.mag[2] * 150;
         frac2str(mag_x, 3, buf_magx);
         frac2str(mag_y, 3, buf_magy);
         frac2str(mag_z, 3, buf_magz);
@@ -1293,6 +1321,8 @@ int nineaxis(void)
         uart_send_str(buf_magz);
         uart_line_break();
 
+        uart_send_str("**********************************************************");
+        uart_line_break();
 
         // 画面クリア
         write_i2c(monitor_addr, 0x00, 0x01); // ディスプレイクリア
