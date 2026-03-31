@@ -605,8 +605,8 @@ static void bootup_monitor(uint8_t addr)
     // AQM0802初期設定
     PUT32(SIO_GPIO_OUT_SET, 1 << 7); // ディスプレイ RESET
     delay_ms(40); // 40ms待機
-    uart_send_str("Monitor Init 1");
-    uart_line_break();
+    // uart_send_str("Monitor Init 1");
+    // uart_line_break();
     // 1-1
     write_i2c(addr, 0x00, 0x38); // Function set -> 8bit bus, 2-line display
     delay_us(30);                        // 30μs待機
@@ -626,8 +626,8 @@ static void bootup_monitor(uint8_t addr)
     write_i2c(addr, 0x00, 0x6C); // @フォロワー制御 -> 内部フォロワー回路on
     delay_ms(200);                       // 200ms待機
 
-    uart_send_str("Monitor Init 2");
-    uart_line_break();
+    // uart_send_str("Monitor Init 2");
+    // uart_line_break();
     // 2-1
     write_i2c(addr, 0x00, 0x38); // @Function set ->  標準セット戻し
     delay_us(30);                        // 30μs待機
