@@ -748,8 +748,6 @@ static void spi_init(void)
 
     // GPIO13(NCS)はSIO(=5)として初期化(MPU9250用)
     PUT32(IO_BANK0_GPIO13_CTRL_RW, 5);
-    // GPIO10でCSBをI2Cの張り付きリセットスイッチとして使うためSIO(=5)設定
-    PUT32(IO_BANK0_GPIO10_CTRL_RW, 5);
 
     PUT32(SIO_GPIO_OUT_SET, BIT_CS_MPU); // GPIO13の値をHighにセット
     PUT32(SIO_GPIO_OE_SET, BIT_CS_MPU);  // GPIO13の出力を有効化
