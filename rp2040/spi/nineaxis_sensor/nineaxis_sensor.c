@@ -753,8 +753,6 @@ static void spi_init(void)
 
     PUT32(SIO_GPIO_OUT_SET, BIT_CS_MPU); // GPIO13の値をHighにセット
     PUT32(SIO_GPIO_OE_SET, BIT_CS_MPU);  // GPIO13の出力を有効化
-    PUT32(SIO_GPIO_OUT_SET, (1 << 10)); // GPIO10の値をHighにセット
-    PUT32(SIO_GPIO_OE_SET, (1 << 10));  // GPIO10の出力を有効化
 
     // SPI1一旦無効化
     PUT32(SPI1_SSPCR1_RW, 0x00); // SSE -> disable
