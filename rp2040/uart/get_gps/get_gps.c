@@ -165,12 +165,6 @@ static void uart1_init(void)
     PUT32(IO_BANK0_GPIO9_CTRL_RW, 2);    // UART1_RX
 }
 
-static uint8_t uart_receive_blocking(void)
-{
-    while (GET32(UART0_FR_RW) & (1 << 4));
-    return (uint8_t)(GET32(UART0_DR_RW) & 0xFF);
-}
-
 static void uart_send(uint32_t x)
 {
     while (GET32(UART0_FR_RW) & (1 << 5));
@@ -890,21 +884,6 @@ static int32_t verify_gps_checksum(const char *s)
     return (crc == received_crc);
 }
 
-// データが$GPRMCであるかを判定する関数
-static int32_t check_gprmc(const char *s)
-{
-    if (s[0] == '$' &&
-        s[1] == 'G' &&
-        s[2] == 'P' &&
-        s[3] == 'R' &&
-        s[4] == 'M' &&
-        s[5] == 'C')
-    {
-        return 1;
-    }
-    return 0;
-}
-
 static void check_gps_receive_rate(void)
 {
     static uint32_t rmc_count = 0;
@@ -975,47 +954,6 @@ static void receive_gps(GPS_Data *out)
                     uart_line_break();
                 }
                 idx = 0; // 次の受信のためにリセット
-            }
-        }
-    }
-}
-
-static void receive_gps_temp(GPS_Data *out)
-{
-    static char gps_buffer[MAX_NMEA_LENGTH];
-    static uint8_t idx = 0;
-
-    while (!(GET32(UART1_FR_RW) & (1 << 4))) 
-    {
-        uint8_t c = (uint8_t)(GET32(UART1_DR_RW) & 0xFF);
-
-        // ASCIIフィルタ
-        if (c >= 0x80) continue;
-        // 制御文字も改行(10,13)以外は捨てる
-        if (c < 32 && c != 10 && c != 13) continue;
-
-        if (c == '$')
-        {
-            idx = 0;
-            gps_buffer[idx++] = c;
-        }
-        else if (idx > 0 && idx < (MAX_NMEA_LENGTH - 1))
-        {
-            gps_buffer[idx++] = c;
-            if (c == '\n' || c == '\r')
-            {
-                gps_buffer[idx] = '\0';
-
-                // $GPRMCのみを抽出
-                if (gps_buffer[1] == 'G' && gps_buffer[2] == 'P' && gps_buffer[3] == 'R')
-                {
-                    parse_gprmc(gps_buffer, out);
-                    // ここで一気に出す！(一文字ずつの表示は厳禁)
-                    uart_send_str("RAW_GPS: ");
-                    uart_send_str(gps_buffer);
-                    uart_line_break();
-                }
-                idx = 0;
             }
         }
     }
@@ -1096,190 +1034,6 @@ static void set_gps_msg_only_rmc(void)
     delay_ms(400);
 }
 
-static void i2c_init(void)
-{
-    PUT32(I2C0_IC_ENABLE_RW, 0); // I2C0初期化
-    while (GET32(I2C0_IC_ENABLE_RW) & 1);
-
-    // FIFO trigger
-    PUT32(I2C0_IC_TX_TL_RW, 0);
-    PUT32(I2C0_IC_RX_TL_RW, 0);
-
-    // DMA off
-    PUT32(I2C0_IC_DMA_CR_RW, 0);
-
-    // interrupt clear
-    GET32(I2C0_IC_CLR_INTR_RW);
-
-    // I2C0をマスターモード、高速モード、7bitアドレス送信 に設定
-    PUT32(
-        I2C0_IC_CON_RW,
-        1 << 0 |    // MASTER_MODE -> enabled
-        1 << 1 |    // SPEED -> standard
-        0 << 3 |    // IC_10BITADDR_SLAVE -> Slave 7bits addressing mode
-        0 << 4 |    // IC_10BITADDR_MASTER -> Master 7bits addressing mode
-        1 << 5 |    // IC_RESTART_EN -> enable
-        1 << 6 |    // IC_SLAVE_DISABLE -> slave_disabled
-        0 << 7 |    // STOP_DET_IFADDRESSED -> disbaled
-        1 << 8 |    // TX_EMPTY_CTRL -> enabled
-        0 << 9      // RX_FIFO_FULL_HLD_CTRL -> disabled
-    );
-    // I2C0周波数 100kHzに設定上
-    // I2C0 標準モードのSCLクロックのHigh期間カウント
-    PUT32(I2C0_IC_SS_SCL_HCNT_RW, 500); // 500
-    // I2C0 標準モードのSCLクロックのLow期間カウント
-    PUT32(I2C0_IC_SS_SCL_LCNT_RW, 741); // 741
-    // I2C0 スパイク抑制ロジックによってフィルタリングされる最長スパイクの持続時間
-    PUT32(I2C0_IC_FS_SPKLEN_RW, 4); // 3:32ns 4:40ns 5:48ns
-    // I2C0 SDAホールド持続時間
-    PUT32(I2C0_IC_SDA_HOLD_RW, 75); // 600ns 最低値は0x1
-
-    // IO_BANK0 setting
-    PUT32(IO_BANK0_GPIO4_CTRL_RW, 3); // I2C0-SDA
-    PUT32(IO_BANK0_GPIO5_CTRL_RW, 3); // I2C0-SCL
-
-    // I2C0を有効化
-    PUT32(I2C0_IC_ENABLE_RW, 1);
-    while (!(GET32(I2C0_IC_ENABLE_RW) & 1));
-}
-
-// スレーブデバイスへの書き込み関数
-static inline int write_i2c(const uint8_t address, uint8_t comMsb, uint8_t comLsb)
-{
-    // TX_FIFOが空くのを確認(TFE -> 0x1)
-    while (!(GET32(I2C0_IC_STATUS_RW) & (1 << 2)));
-
-    // ABORT/STOPクリア
-    GET32(I2C0_IC_CLR_TX_ABRT_RW);
-    GET32(I2C0_IC_CLR_STOP_DET_RW);
-    // 割り込み・ABORT完全クリア
-    GET32(I2C0_IC_CLR_INTR_RW);
-
-    PUT32(I2C0_IC_ENABLE_RW, 0);
-    while (GET32(I2C0_IC_ENABLE_RW) & 1);
-    PUT32(I2C0_IC_TAR_RW, (address & 0x7F));
-    PUT32(I2C0_IC_ENABLE_RW, 1); // データ読み込み前に必ずこのレジスタをenableに設定すること
-    while (!(GET32(I2C0_IC_ENABLE_RW) & 1));
-
-    // コマンド読み込み
-    uint8_t data[2] = {comMsb, comLsb};
-
-    uint32_t i;
-    for (i = 0; i < 2; i++)
-    {
-        uint32_t cmd = data[i];
-
-        // 最初のバイト
-        if (i == 0)
-        {
-            cmd |= (0 << 10);
-            cmd |= (0 << 9);
-        }
-        // 最後のバイト → STOP
-        if (i == 1)
-        {
-            cmd |= (1 << 9);
-        }
-
-        PUT32(I2C0_IC_DATA_CMD_RW, cmd);
-
-        // TX_TLのしきい値以下確認（CON設定上、実質０確認となる）
-        while (!(GET32(I2C0_IC_RAW_INTR_STAT_RW) & (1 << 4))); // TX_EMPTY
-
-        // ABORT確認
-        uint8_t log[33];
-        bool abort = false;
-        uint32_t abort_reason = GET32(I2C0_IC_TX_ABRT_SOURCE_RW);
-        if (abort_reason != 0)
-        {
-            int2bin32(abort_reason, log);
-            uart_send(0x23);    // DEBUG #
-            uart_send_str(log); // ログ出力
-            uart_line_break();
-            GET32(I2C0_IC_CLR_TX_ABRT_RW); // ABORTデータクリア
-            abort = true;
-            // 発生ABORTチェック
-            if (abort_reason & (1 << 0))
-            {
-                uart_send_str("Write ComMsb NoAck !"); // DEBUG
-                uart_line_break();
-            }
-            if (abort_reason & (1 << 3))
-            {
-                uart_send_str("Write ComLsb NoAck !"); // DEBUG
-                uart_line_break();
-            }
-
-            // STOP_DET割り込みがアクティブになるのを確認
-            while (!(GET32(I2C0_IC_RAW_INTR_STAT_RW) & (1 << 9)));
-            GET32(I2C0_IC_CLR_STOP_DET_RW);
-
-            return -1; // 書込失敗
-        }
-        if (abort)
-            break;
-    }
-
-    return 0; // 成功
-}
-
-static void monitor_init(void)
-{
-    PUT32(IO_BANK0_GPIO6_CTRL_RW, 5); // SIO
-    PUT32(IO_BANK0_GPIO7_CTRL_RW, 5); // SIO
-
-    PUT32(SIO_GPIO_OE_CLR, 1 << 6); // GPIO6出力を無効化
-    PUT32(SIO_GPIO_OE_CLR, 1 << 7); // GPIO7出力を無効化
-
-    PUT32(SIO_GPIO_OUT_CLR, 1 << 6); // GPIO6の値をクリア
-    PUT32(SIO_GPIO_OUT_CLR, 1 << 7); // GPIO7の値をクリア
-
-    PUT32(SIO_GPIO_OE_SET, 1 << 6); // GPIO6出力を有効化
-    PUT32(SIO_GPIO_OE_SET, 1 << 7); // GPIO7出力を有効化
-}
-
-static void bootup_monitor(uint8_t addr)
-{
-    // AQM0802初期設定
-    PUT32(SIO_GPIO_OUT_SET, 1 << 7); // ディスプレイ RESET
-    delay_ms(40); // 40ms待機
-    // uart_send_str("Monitor Init 1");
-    // uart_line_break();
-    // 1-1
-    write_i2c(addr, 0x00, 0x38); // Function set -> 8bit bus, 2-line display
-    delay_us(30);                        // 30μs待機
-    // 1-2
-    write_i2c(addr, 0x00, 0x39); // Function set -> (IS tabel = 1) 拡張機能セット
-    delay_us(30);                        // 30μs待機
-    // 1-3
-    write_i2c(addr, 0x00, 0x14); // @内蔵発振器の周波数設定 -> bias: 1/5, F2=1: 183Hz(3.0Vの場合)
-    delay_us(30);                        // 30μs待機
-    // 1-4
-    write_i2c(addr, 0x00, 0x71); // コントラスト設定(Low byte) -> ?
-    delay_us(30);                        // 30μs待機
-    // 1-5
-    write_i2c(addr, 0x00, 0x56); // @Power,ICONコントロール,コントラスト設定(High byte) -> booster on
-    delay_us(30);                        // 30μs待機
-    // 1-6
-    write_i2c(addr, 0x00, 0x6C); // @フォロワー制御 -> 内部フォロワー回路on
-    delay_ms(200);                       // 200ms待機
-
-    // uart_send_str("Monitor Init 2");
-    // uart_line_break();
-    // 2-1
-    write_i2c(addr, 0x00, 0x38); // @Function set ->  標準セット戻し
-    delay_us(30);                        // 30μs待機
-    // 2-2
-    write_i2c(addr, 0x00, 0x0C); // @ディスプレイ制御 -> ディスプレイon
-    delay_us(30);                        // 30μs待機
-    // 2-3
-    write_i2c(addr, 0x00, 0x01); // ディスプレイクリア
-    delay_us(1100);                      // 1.1ms待機
-
-    PUT32(SIO_GPIO_OUT_SET, 1 << 6); // モニター照明ON
-}
-
-
 volatile uint32_t systick_ms = 0;
 void Systick_Handler(void)
 {
@@ -1298,16 +1052,10 @@ int get_gps(void)
     led_init();
     uart0_init();
     uart1_init();
-    i2c_init();
-    monitor_init();
     
     PUT32(SYST_RVR, 125000 - 1); // 125MHz設定のため、1msカウントにセット（1s設定できないため）
     PUT32(SYST_CVR, 0);          // 125MHz設定のため、1msカウントにセット（1s設定できないため）
     PUT32(SYST_CSR, 0x07);       // プロセッサクロック使用、例外ステータス保留、カウンター有効
-    
-    // モニターのスレーブアドレス
-    const uint8_t monitor_addr = 0x3E;
-    bootup_monitor(monitor_addr);
 
     static const uint8_t ubx_cfg_baud_57600[] = {
         0xB5, 0x62,             // Sync Char (Header)
@@ -1363,28 +1111,6 @@ int get_gps(void)
         uart_line_break();
         uart_send_str(buf_lon);
         uart_line_break();
-
-        // // 画面クリア
-        // write_i2c(monitor_addr, 0x00, 0x01); // ディスプレイクリア
-        // delay_ms(1);                         // 1ms待機
-        // // アドレス記述
-        // write_i2c(monitor_addr, 0x00, (0x00 | 0x80));
-        // delay_us(30); // 30μs待機
-
-        // write_i2c(monitor_addr, 0x40, 0x58); // X
-        // delay_us(30); // 30μs待機
-
-        // // DEBUG
-        // // UART1 (GPS) から文字が届いたら
-        // if (!(GET32(UART1_FR_RW) & (1 << 4))) { 
-        //     uint8_t c = (uint8_t)(GET32(UART1_DR_RW) & 0xFF);
-            
-        //     // UART0 (PC) へそのまま流す
-        //     while (GET32(UART0_FR_RW) & (1 << 5)); 
-        //     PUT32(UART0_DR_RW, c);
-        // }
-
-        // delay_ms(1000); // 1s待ち
     }
 
     return 0;
