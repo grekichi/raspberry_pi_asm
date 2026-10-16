@@ -37,9 +37,6 @@ start.o : start.s
 $(NAME).o : $(NAME).c
 		$(ARMGNU)-gcc $(COPS) -mthumb -c $(NAME).c -o $(NAME).o
 
-# uart.o : uart.c
-# 		$(ARMGNU)-gcc $(COPS) uart.c -o uart.o
-
 $(NAME).bin : rp2040.ld start.o $(NAME).o
 		$(ARMGNU)-ld -T rp2040.ld start.o $(NAME).o -o $(NAME).elf $(LDLIBS)
 #$(LIBS)
