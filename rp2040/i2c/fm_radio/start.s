@@ -109,13 +109,6 @@ GET32:
     ldr r0,[r0]
     bx lr
 
-.globl DELAY
-.thumb_func
-DELAY:
-    sub r0,#1
-    bne DELAY
-    bx lr
-
 .thumb_func
 .global WFI
 WFI:
