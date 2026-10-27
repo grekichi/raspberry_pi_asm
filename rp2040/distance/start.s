@@ -35,7 +35,7 @@ XIP_SSI_SPI_CTRLR0  = XIP_SSI_BASE + 0xF4
 
     ldr r0, =0x10000000         ;@ Source address (FLASH)
     ldr r1, =0x20000000         ;@ Destination (SRAM)
-    ldr r2, =0x2000             ;@ size of code = 4096 bytes
+    ldr r2, =0x2000             ;@ size of code = 8192 bytes
 
 copy_loop:
     ldr r3, [r0]
