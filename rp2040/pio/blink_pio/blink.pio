@@ -1,0 +1,7 @@
+.program blink
+
+    set pindirs, 1      ; 最初に1回だけ実行（SET_BASE/SET_COUNT のピンを出力にする）
+.wrap_target
+    pull block          ; CPUからTX FIFOにデータが送られてくるまで待機する
+    out pins, 1         ; 受け取った値の最下位1ビットをピンに出力する
+.wrap
