@@ -1,0 +1,16 @@
+; ST7066U互換LCD 8ビット書き込み用 PIOプログラム
+;
+; FIFOワード: bit0-7 = データ(GP0..GP7), bit8 = RS(GP8), bit9-31 = 送信後の待ち時間[us]
+; ピン割り当て: out = GP0..GP8 (9本), side-set = GP9 (E)
+; SMクロックは 1MHz(1命令 = 1us) を前提とする。
+
+.program lcd16
+.side_set 1
+
+.wrap_target
+    pull block      side 0      ; FIFOから1ワード取得 (空なら E = Low のまま停止)
+    out pins, 9     side 0      ; DB0 ~ DB7 と RS を同時出力 (Eより1us先行 = セットアップ)
+    out x, 23       side 1      ; E = High 1us (>=460ns) + 待ち時間をXへ
+delay_loop:
+    jmp x--, delay_loop     side 0 ; E = Low で待ち時間分ループ
+.wrap
