@@ -96,7 +96,7 @@ static void pio_init(void)
     PUT32(PIO0_SM0_PINCTRL_RW, (5u << 26) | (5u << 5));
     PUT32(PIO0_SM0_INSTR_RW, 0xE09F);
 
-    // ピン割り当て: out=> GPIO0~8(9本), side-set=>GPIO9(1本) 
+    // ピン割り当て: out=> GPIO0~8(9個), side-set=>GPIO9(1個) 
     // SIDESET_COUNT-> 1, OUT_COUNT->9 , SIDESET_BASE->9, OUT_BASE-> 0
     PUT32(PIO0_SM0_PINCTRL_RW, (1u << 29) | (9u << 20) | (9u << 10) | (0u << 0));
     
