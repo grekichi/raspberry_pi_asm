@@ -40,8 +40,6 @@ static void clock_init(void)
 
     // clk_peri を有効化(AUXSRC-> CLK_SYS, ENABLE-> 1) UART使用の場合に設定
     PUT32(CLK_PERI_CTRL_RW, (1 << 11) | (0x0 << 5));
-    // clk_periの有効待ち
-    while (!(GET32(CLK_PERI_CTRL_RW) & (1 << 11)));
 
     PUT32(WATCHDOG_TICK_RW, 12 | (1 << 9));  // 12cycles(12MHz) = 1us, enable
 }
